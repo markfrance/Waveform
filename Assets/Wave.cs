@@ -24,7 +24,7 @@ public class Wave : MonoBehaviour
 	float startLoop;
 	float endLoop;
 
-	public bool isLooping;
+	public bool isLooping, isReversed;
 	
 	void Start()
 	{
@@ -50,6 +50,9 @@ public class Wave : MonoBehaviour
 		xScale = width / samples.Length;
 		
 		endLoop = width;
+
+        source.loop = true;
+        
 	}
 
 	void OnPostRender()
@@ -60,7 +63,12 @@ public class Wave : MonoBehaviour
 		
 		if(isLooping)
 			DrawLoopHandles();
-	}
+
+        if (isReversed)
+            source.pitch = -1;
+        else
+            source.pitch = 0;
+    }
 
 	private void DrawLoopHandles()
 	{
@@ -76,7 +84,6 @@ public class Wave : MonoBehaviour
 
 		DrawRect(Vector3.zero, new Vector3(start.x, 10, 0));
 		DrawRect(new Vector3(end.x, 0, 0), new Vector3(width, 10, 0));
-
 	}
 
 	private void DrawRect(Vector3 bottomLeft, Vector3 topRight)
@@ -112,33 +119,43 @@ public class Wave : MonoBehaviour
 		mat.color = waveformColour;
 		mat.SetPass(0);
 		GL.LoadOrtho();
-		
-		for (int i = 0; i < waveForm.Length - 1; i++)
-		{
-			GL.Begin(GL.LINES);
-			GL.Color(waveformColour);
-			
-			Vector3 start = new Vector3(i * xScale + pos.x, waveForm[i] * yScale + pos.y, 0);
-			Vector3 end = new Vector3(i * xScale + pos.x, -waveForm[i] * yScale + pos.y, 0);
-			
-			GL.Vertex(start);
-			GL.Vertex(end);
-			
-			GL.End();
-	
-			if (i % resolution == 0)
-			{
-				Vector3 secondPos = new Vector3(i * xScale + pos.x, 0, 0);
-				DrawLine2D(secondPos, secondPos + Vector3.up * 2, Color.white);
-			}
-		}
 
+        if (isReversed)
+        {
+            for (int i = waveForm.Length -1; i > 0; i--)
+                DrawSample(i);
+        }
+        else
+        {
+            for (int i = 0; i < waveForm.Length - 1; i++)
+                DrawSample(i);
+        }
+	
 		GL.PopMatrix();
 	}
 
+    void DrawSample(int i)
+    {
+        GL.Begin(GL.LINES);
+        GL.Color(waveformColour);
+
+        Vector3 start = new Vector3(i * xScale + pos.x, waveForm[i] * yScale + pos.y, 0);
+        Vector3 end = new Vector3(i * xScale + pos.x, -waveForm[i] * yScale + pos.y, 0);
+
+        GL.Vertex(start);
+        GL.Vertex(end);
+
+        GL.End();
+
+        if (i % resolution == 0)
+        {
+            Vector3 secondPos = new Vector3(i * xScale + pos.x, 0, 0);
+            DrawLine2D(secondPos, secondPos + Vector3.up * 2, Color.white);
+        }
+    }
+
 	void Update()
 	{
-
 		if (isLooping)
 		{
 			if (Input.GetMouseButtonDown(0))
@@ -157,14 +174,30 @@ public class Wave : MonoBehaviour
 					endLoop = Input.mousePosition.x;
 			}
 
+            if (Input.GetKeyDown(KeyCode.R))
+                isReversed = !isReversed;
+
 			int startSample = (int)(((startLoop * resolution) / xScale) / width / 2);
+            int endSample = (int)(((endLoop * resolution) / xScale) / width / 2);
 
-			//Update loop position
-			if (current >= (endLoop / width) / xScale)
-				source.timeSamples = startSample;
+            //Update loop position
 
-			if (current <= (startLoop / width) / xScale)
-				source.timeSamples = startSample;
+            if (isReversed)
+            {
+                if (current >= (endLoop / width) / xScale)
+                    source.timeSamples = endSample;
+
+                if (current <= (startLoop / width) / xScale)
+                    source.timeSamples = endSample;
+            }
+            else
+            {
+                if (current >= (endLoop / width) / xScale)
+                    source.timeSamples = startSample;
+
+                if (current <= (startLoop / width) / xScale)
+                    source.timeSamples = startSample;
+            }
 		}
 		if (Input.GetKeyDown(KeyCode.Space))
 		{
